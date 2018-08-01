@@ -1111,10 +1111,47 @@ typedef struct {
  @param _value   should not be nil.
  @param _context _context.modelMeta and _context.model should not be nil.
  */
+
+// 将 new_count 格式转换 为 newCount oc编码风格
+static force_inline NSString *hb_transformString(NSString *inString)
+{
+    NSString *newStr = nil;
+    NSMutableString *string = [NSMutableString stringWithFormat:@"%@",inString];
+    NSRange range;
+    range = [string rangeOfString:@"_"];
+    if (range.location != NSNotFound) {
+        if (string.length <= range.location) {
+            [string deleteCharactersInRange:range];
+            newStr = [NSString stringWithFormat:@"%@",string];
+            return newStr;
+        }
+        NSString *ok = [[string substringWithRange:NSMakeRange(range.location+1,1)] uppercaseString];
+        if (ok) {
+            [string replaceCharactersInRange:NSMakeRange(range.location+1, 1) withString:ok];
+            [string deleteCharactersInRange:range];
+            
+            NSRange ra = [string rangeOfString:@"_"];
+            if (ra.location == NSNotFound) {
+                newStr = [NSString stringWithFormat:@"%@",string];
+            }else{
+                newStr = hb_transformString(string);
+            }
+        } else {
+            [string deleteCharactersInRange:range];
+            newStr = [NSString stringWithFormat:@"%@",string];
+        }
+    } else {
+        newStr = string;
+    }
+    return newStr;
+}
+
 static void ModelSetWithDictionaryFunction(const void *_key, const void *_value, void *_context) {
     ModelSetContext *context = _context;
+    NSString *newkey = (__bridge id)_key;
+    newkey = hb_transformString(newkey);
     __unsafe_unretained _YYModelMeta *meta = (__bridge _YYModelMeta *)(context->modelMeta);
-    __unsafe_unretained _YYModelPropertyMeta *propertyMeta = [meta->_mapper objectForKey:(__bridge id)(_key)];
+    __unsafe_unretained _YYModelPropertyMeta *propertyMeta = [meta->_mapper objectForKey:newkey];
     __unsafe_unretained id model = (__bridge id)(context->model);
     while (propertyMeta) {
         if (propertyMeta->_setter) {
