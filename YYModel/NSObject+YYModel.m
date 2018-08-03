@@ -1104,6 +1104,45 @@ typedef struct {
     void *dictionary; ///< NSDictionary (json)
 } ModelSetContext;
 
+
+// 将 newCount 格式转换 为 new_count
+static inline NSString *hb_underlineStyleString(NSString *string) {
+    if (string.length == 0) return string;
+    NSMutableString *newStr = [NSMutableString string];
+    for (NSUInteger i = 0; i< string.length; i++) {
+        unichar c = [string characterAtIndex:i];
+        unichar cLower = tolower(c);
+        if (c == cLower) {
+            [newStr appendString:[NSString stringWithFormat:@"%c", cLower]];
+        }else {
+            [newStr appendString:@"_"];
+            [newStr appendString:[NSString stringWithFormat:@"%c", cLower]];
+        }
+    }
+    return newStr;
+}
+
+
+// 将 new_count 格式转换 为 newCount oc编码风格
+static inline NSString *hb_camelStyleString(NSString *string)
+{
+    if (string.length == 0) return string;
+    NSMutableString *newStr = [NSMutableString string];
+    NSArray *cmps = [string componentsSeparatedByString:@"_"];
+    for (NSUInteger i = 0; i<cmps.count; i++) {
+        NSString *cmp = cmps[i];
+        if (i && cmp.length) {
+            // 首字符大写
+            unichar cUpper = toupper([cmp characterAtIndex:0]);
+            [newStr appendString:[NSString stringWithFormat:@"%c",cUpper]];
+            if (cmp.length >= 2) [newStr appendString:[cmp substringFromIndex:1]];
+        } else {
+            [newStr appendString:cmp];
+        }
+    }
+    return newStr;
+}
+
 /**
  Apply function for dictionary, to set the key-value pair to model.
  
@@ -1111,45 +1150,12 @@ typedef struct {
  @param _value   should not be nil.
  @param _context _context.modelMeta and _context.model should not be nil.
  */
-
-// 将 new_count 格式转换 为 newCount oc编码风格
-static force_inline NSString *hb_transformString(NSString *inString)
-{
-    NSString *newStr = nil;
-    NSMutableString *string = [NSMutableString stringWithFormat:@"%@",inString];
-    NSRange range;
-    range = [string rangeOfString:@"_"];
-    if (range.location != NSNotFound) {
-        if (string.length <= range.location) {
-            [string deleteCharactersInRange:range];
-            newStr = [NSString stringWithFormat:@"%@",string];
-            return newStr;
-        }
-        NSString *ok = [[string substringWithRange:NSMakeRange(range.location+1,1)] uppercaseString];
-        if (ok) {
-            [string replaceCharactersInRange:NSMakeRange(range.location+1, 1) withString:ok];
-            [string deleteCharactersInRange:range];
-            
-            NSRange ra = [string rangeOfString:@"_"];
-            if (ra.location == NSNotFound) {
-                newStr = [NSString stringWithFormat:@"%@",string];
-            }else{
-                newStr = hb_transformString(string);
-            }
-        } else {
-            [string deleteCharactersInRange:range];
-            newStr = [NSString stringWithFormat:@"%@",string];
-        }
-    } else {
-        newStr = string;
-    }
-    return newStr;
-}
-
 static void ModelSetWithDictionaryFunction(const void *_key, const void *_value, void *_context) {
     ModelSetContext *context = _context;
+    //edit by :zxwo0o 2018-8-3
     NSString *newkey = (__bridge id)_key;
-    newkey = hb_transformString(newkey);
+    newkey = hb_camelStyleString(newkey);
+    
     __unsafe_unretained _YYModelMeta *meta = (__bridge _YYModelMeta *)(context->modelMeta);
     __unsafe_unretained _YYModelPropertyMeta *propertyMeta = [meta->_mapper objectForKey:newkey];
     __unsafe_unretained id model = (__bridge id)(context->model);
@@ -1179,7 +1185,9 @@ static void ModelSetWithPropertyMetaArrayFunction(const void *_propertyMeta, voi
     } else if (propertyMeta->_mappedToKeyPath) {
         value = YYValueForKeyPath(dictionary, propertyMeta->_mappedToKeyPath);
     } else {
-        value = [dictionary objectForKey:propertyMeta->_mappedToKey];
+        //edit by :zxwo0o 2018-8-3
+        NSString *newKey = hb_underlineStyleString(propertyMeta->_mappedToKey);
+        value = [dictionary objectForKey:newKey];
     }
     
     if (value) {
